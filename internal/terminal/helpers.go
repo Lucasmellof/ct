@@ -18,18 +18,18 @@ func terminalSize(fd int) (int, int) {
 	return width, height
 }
 
-func resize(p ptylib.Pty, stopResize context.Context) {
+func resize(p ptylib.Pty, stopResize context.Context, terminalFD int) {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
 
-	lastWidth, lastHeight := terminalSize(int(p.Fd()))
+	lastWidth, lastHeight := terminalSize(terminalFD)
 
 	for {
 		select {
 		case <-stopResize.Done():
 			return
 		case <-ticker.C:
-			width, height := terminalSize(int(p.Fd()))
+			width, height := terminalSize(terminalFD)
 
 			if width == lastWidth && height == lastHeight {
 				continue

@@ -28,8 +28,8 @@ func Run(command string, args []string) error {
 		})
 	}
 	defer closePty()
-
-	width, height := terminalSize(int(pty.Fd()))
+	terminalFD := int(os.Stdout.Fd())
+	width, height := terminalSize(terminalFD)
 	if err := pty.Resize(width, height); err != nil {
 		return fmt.Errorf("failed to resize terminal: %w", err)
 	}
@@ -52,7 +52,7 @@ func Run(command string, args []string) error {
 	resizeCtx, stopResize := context.WithCancel(signalCtx)
 	defer stopResize()
 
-	go resize(pty, resizeCtx)
+	go resize(pty, resizeCtx, terminalFD)
 
 	go func() {
 		_, _ = io.Copy(pty, os.Stdin)
