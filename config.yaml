@@ -1,0 +1,17 @@
+version: 1
+default_profile: default
+palette:
+  address: "#d787ff"
+  danger: "#ff5f5f"
+  info: "#5fafff"
+  interface: "#5fffff"
+  number: "#d7d787"
+  success: "#5fd75f"
+  warning: "#ffd75f"
+
+profiles:
+  default:
+    rules:
+      - description: "IPv4"
+        regex: "\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\b"
+        style: "fg.address"
