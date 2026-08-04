@@ -2,6 +2,7 @@ package highlighter
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"sort"
 )
@@ -11,6 +12,13 @@ const AnsiReset = "\x1b[0m"
 type HighlightRule struct {
 	Name     string
 	Pattern  *regexp.Regexp
+	ANSI     string
+	Priority int
+}
+
+type RuleSpec struct {
+	Name     string
+	Pattern  string
 	ANSI     string
 	Priority int
 }
@@ -25,47 +33,21 @@ type Highlighter struct {
 	rules []HighlightRule
 }
 
-func NewHighlighter() *Highlighter {
-	return &Highlighter{
-		rules: []HighlightRule{
-			{
-				Name:     "success",
-				Pattern:  regexp.MustCompile(`(?i)(up|established|success|ok|done|completed|finished):?`),
-				ANSI:     "\x1b[1;32m",
-				Priority: 110,
-			},
-			{
-				Name:     "error",
-				Pattern:  regexp.MustCompile(`(?i)(down|error|fail|failed|exception|panic|fatal):?`),
-				ANSI:     "\x1b[1;31m",
-				Priority: 100,
-			},
-			{
-				Name:     "warning",
-				Pattern:  regexp.MustCompile(`(?i)(warning|warn|alert|notice):?`),
-				ANSI:     "\x1b[1;33m",
-				Priority: 90,
-			},
-			{
-				Name:     "ipv4",
-				Pattern:  regexp.MustCompile(`(?i)([0-9]{1,3}\.){3}[0-9]{1,3}`),
-				ANSI:     "\x1b[1;34m",
-				Priority: 80,
-			},
-			{
-				Name:     "asn",
-				Pattern:  regexp.MustCompile(`(?i)\bAS[0-9]{1,10}\b`),
-				ANSI:     "\x1b[38;2;95;170;255m",
-				Priority: 80,
-			},
-			{
-				Name:     "huawei-interface",
-				Pattern:  regexp.MustCompile(`\b(100GE|40GE|25GE|10GE|GigabitEthernet|Eth-Trunk|Vlanif|LoopBack|Tunnel|NULL|Nve|Virtual-Template)[A-Za-z0-9/_.:-]*\b`),
-				ANSI:     "\x1b[38;2;95;255;255m",
-				Priority: 70,
-			},
-		},
+func NewHighlighter(specs []RuleSpec) (*Highlighter, error) {
+	rules := make([]HighlightRule, 0, len(specs))
+	for _, spec := range specs {
+		pattern, err := regexp.Compile(spec.Pattern)
+		if err != nil {
+			return nil, fmt.Errorf("compile rule %q: %w", spec.Name, err)
+		}
+		rules = append(rules, HighlightRule{
+			Name:     spec.Name,
+			Pattern:  pattern,
+			ANSI:     spec.ANSI,
+			Priority: spec.Priority,
+		})
 	}
+	return &Highlighter{rules: rules}, nil
 }
 
 func (h *Highlighter) Highlight(input []byte) []byte {

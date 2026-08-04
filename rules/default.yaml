@@ -1,0 +1,27 @@
+profiles:
+  default:
+    rules:
+      - description: success
+        regex: '(?i)(up|established|success|ok|done|completed|finished):?'
+        style: bold fg.success
+        priority: 110
+      - description: error
+        regex: '(?i)(down|error|fail|failed|exception|panic|fatal):?'
+        style: bold fg.danger
+        priority: 100
+      - description: warning
+        regex: '(?i)(warning|warn|alert|notice):?'
+        style: bold fg.warning
+        priority: 90
+      - description: ipv4
+        regex: '(?i)([0-9]{1,3}\.){3}[0-9]{1,3}'
+        style: bold fg.info
+        priority: 80
+      - description: asn
+        regex: '(?i)\bAS[0-9]{1,10}\b'
+        style: fg.info
+        priority: 80
+      - description: huawei-interface
+        regex: '\b(100GE|40GE|25GE|10GE|GigabitEthernet|Eth-Trunk|Vlanif|LoopBack|Tunnel|NULL|Nve|Virtual-Template)[A-Za-z0-9/_.:-]*\b'
+        style: fg.interface
+        priority: 70

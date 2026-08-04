@@ -8,17 +8,27 @@ import (
 	"path/filepath"
 
 	"github.com/lucasmellof/ct/internal/config"
+	"github.com/lucasmellof/ct/internal/highlighter"
 	"github.com/lucasmellof/ct/internal/terminal"
 )
 
 func main() {
-	if err := terminal.EnableVirtualTerminal(); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to enable virtual terminal: %v\n", err)
-		os.Exit(1)
-	}
-
 	if err := config.LoadConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
+		os.Exit(1)
+	}
+	rules, err := config.HighlightRules()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load highlighting rules: %v\n", err)
+		os.Exit(1)
+	}
+	highlighterInstance, err := highlighter.NewHighlighter(rules)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to compile highlighting rules: %v\n", err)
+		os.Exit(1)
+	}
+	if err := terminal.EnableVirtualTerminal(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to enable virtual terminal: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -30,7 +40,7 @@ func main() {
 	program := os.Args[1]
 	args := os.Args[2:]
 
-	err := terminal.Run(program, args)
+	err = terminal.Run(program, args, highlighterInstance)
 	if err == nil {
 		os.Exit(0)
 	}

@@ -9,30 +9,19 @@ import (
 	"sync"
 	"time"
 
-	ptylib "github.com/aymanbagabas/go-pty"
+	"golang.org/x/sys/windows"
 	"golang.org/x/term"
 
 	"github.com/lucasmellof/ct/internal/highlighter"
+	"github.com/rurreac/conpty"
 )
 
-func Run(command string, args []string) error {
-	pty, err := ptylib.New()
-	if err != nil {
-		return fmt.Errorf("failed to create pty: %w", err)
+func Run(command string, args []string, highlighter *highlighter.Highlighter) error {
+	if highlighter == nil {
+		return fmt.Errorf("highlighter is nil")
 	}
-
-	var closePtyOnce sync.Once
-	closePty := func() {
-		closePtyOnce.Do(func() {
-			pty.Close()
-		})
-	}
-	defer closePty()
 	terminalFD := int(os.Stdout.Fd())
 	width, height := terminalSize(terminalFD)
-	if err := pty.Resize(width, height); err != nil {
-		return fmt.Errorf("failed to resize terminal: %w", err)
-	}
 
 	raw, err := EnterRaw(os.Stdin)
 	if err != nil {
@@ -44,30 +33,39 @@ func Run(command string, args []string) error {
 	signalCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
 
-	cmd := pty.CommandContext(signalCtx, command, args...)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start program: %w", err)
+	commandLine := windows.ComposeCommandLine(append([]string{command}, args...))
+	pty, err := conpty.StartConPty(commandLine, width, height, os.Environ(), conpty.WithInheritCursor(true))
+	if err != nil {
+		return fmt.Errorf("failed to start ConPTY program: %w", err)
 	}
+	var closePtyOnce sync.Once
+	closePty := func() {
+		closePtyOnce.Do(func() {
+			_ = pty.Close()
+		})
+	}
+	defer closePty()
 
 	resizeCtx, stopResize := context.WithCancel(signalCtx)
 	defer stopResize()
 
 	go resize(pty, resizeCtx, terminalFD)
 
+	input := &inputTracker{}
 	go func() {
-		_, _ = io.Copy(pty, os.Stdin)
+		stdin := trackingReader{reader: newConsoleInputReader(os.Stdin), tracker: input}
+		_, _ = io.Copy(pty, stdin)
 	}()
-
-	highlighter := highlighter.NewHighlighter()
 
 	outputDone := make(chan error, 1)
 
 	go func() {
-		err := copyHighlighted(os.Stdout, pty, highlighter)
-		outputDone <- err
+		output := os.Stdout
+		source := &cursorResponseReader{reader: pty, response: pty, terminalFD: terminalFD}
+		outputDone <- copyHighlightedInteractive(output, source, highlighter, input)
 	}()
 
-	waitErr := cmd.Wait()
+	_, waitErr := pty.Wait(signalCtx)
 	stopResize()
 
 	select {

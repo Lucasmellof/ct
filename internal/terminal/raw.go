@@ -31,6 +31,10 @@ func EnterRaw(file *os.File) (*RawMode, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to set terminal raw mode: %w", err)
 	}
+	if err := disableVirtualTerminalInput(fd); err != nil {
+		_ = term.Restore(fd, oldState)
+		return nil, fmt.Errorf("failed to configure console input: %w", err)
+	}
 
 	return &RawMode{
 		fd:       fd,

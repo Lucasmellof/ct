@@ -4,9 +4,12 @@ import (
 	"context"
 	"time"
 
-	ptylib "github.com/aymanbagabas/go-pty"
 	"golang.org/x/term"
 )
+
+type resizablePTY interface {
+	Resize(width, height int) error
+}
 
 func terminalSize(fd int) (int, int) {
 	width, height, err := term.GetSize(fd)
@@ -18,7 +21,7 @@ func terminalSize(fd int) (int, int) {
 	return width, height
 }
 
-func resize(p ptylib.Pty, stopResize context.Context, terminalFD int) {
+func resize(p resizablePTY, stopResize context.Context, terminalFD int) {
 	ticker := time.NewTicker(150 * time.Millisecond)
 	defer ticker.Stop()
 
